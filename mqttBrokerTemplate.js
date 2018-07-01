@@ -77,14 +77,20 @@ const authorizePublish = function (client, topic, payload, callback) {
     callback(null, authorized);
 }
 
-// // In this case the client authorized as alice can subscribe to /users/alice taking
-// // the username from the topic and verifing it is the same of the authorized user
-// var authorizeSubscribe = function(client, topic, callback) {
-//     callback(null, client.user == topic.split('/')[1]);
-// }
-// On n'a pas besoin de subscriptions
 
-const server = new mosca.Server(settings);
+var authorizeSubscribe = function (client, topic, callback) {
+
+    //
+    //    
+    var authorize = true // ici le traitement 
+    //
+    //
+    
+    callback(null, authorize);
+}
+
+
+const server = new mosca.Server(settings)
 
 server.on('clientConnected', function (client) {
 
@@ -139,9 +145,37 @@ server.on('published', function (packet, client) {
     // console.log('Published: payload::', packet.topic)
 })
 
+server.on('subscribed', function(topic, client){
+    var instance = new subscribtionsModel({
+        device_id: client.user,
+        projectId: project_id, // On doit l'obtenir à partir du sql
+        topic: topic // à vérifier mais normalement c'est ça
+    })
+
+    instance.save(err => {
+        if (err) {
+            throw err
+        }
+    })
+})
+
+server.on('unsubscribed', function(topic, client){
+    var instance = new unsubscribtionsModel({
+        device_id: client.user,
+        projectId: project_id, // On doit l'obtenir à partir du sql
+        topic: topic // à vérifier mais normalement c'est ça
+    })
+
+    instance.save(err => {
+        if (err) {
+            throw err
+        }
+    })
+})
+
 server.on('ready', () => {
-    server.authenticate = authenticate;
-    server.authorizePublish = authorizePublish;
-    // server.authorizeSubscribe = authorizeSubscribe;
-    // console.log('Mosca server is up and running');
+    server.authenticate = authenticate
+    server.authorizePublish = authorizePublish
+    // server.authorizeSubscribe = authorizeSubscribe
+    // console.log('Mosca server is up and running')
 })
