@@ -4,7 +4,9 @@
   "description": "",
   "main": "server.js",
   "dependencies": {
-    "mosca": "^2.8.2"
+    "mongoose": "^5.2.0",
+    "mosca": "^2.8.2",
+    "request": "^2.87.0"
   },
   "devDependencies": {},
   "scripts": {
