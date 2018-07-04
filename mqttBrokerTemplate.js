@@ -5,6 +5,20 @@ const settings = {
     // On peut rajouter des param pour la persistance
 }
 
+const reqProtocol = 'http'
+const reqURL = 'localhost'
+const reqPort = 8000
+const reqPathAuth = '/device/auth'
+
+const reqPathDisconnect = (project_id, group_name, device_name) => {
+    return
+    `/projects/${project_id}/device_groups/${group_name}/devices/${device_name}/disconnect`
+}
+
+const req = (reqProtocol, reqURL, reqPort, reqPath) => {
+    return `${reqProtocol}://${reqURL}:${reqPort}${reqPath}`
+}
+
 const mongoose = require('mongoose')
 const databaseName = 'mqttdb'
 const mongoDB = `mongodb://127.0.0.1:27017/${databaseName}`
@@ -63,23 +77,22 @@ const disconnectionsModel = db.model('disconnection', disconnectionsSchema)
 const request = require('request');
 // Accepts the connection if the username and password are valid
 
-const authenticate = function (client, username, password, callback) {//##
+const authenticate = (client, username, password, callback) => {//##
     //console.log(`authenticate`)
-    var daviceinfos = JSON.parse(username);
-    client.connack = {returnCode: 1}
+    var daviceinfos = JSON.parse(username)
     var headers = {
-        'User-Agent': 'Super Agent/0.0.1',
+        // we must add token here
         'Content-Type': 'application/x-www-form-urlencoded'
     }
     // Configure the request
     var options = {
-        url: 'http://localhost:8000/device/auth',
+        url: req(reqProtocol, reqURL, reqPort, reqPathAuth),
         method: 'POST',
         headers: headers,
-        form: daviceinfos
+        form: daviceinfos //we must add token here
     }
     // Start the request
-    request(options, function (error, response, body) {
+    request(options, (error, response, body) => {
         //console.log(`${response.statusMessage}`)
         if (!error && response.statusCode < 400) {
             // Print out the response body
@@ -104,7 +117,7 @@ const authenticate = function (client, username, password, callback) {//##
 }
 
 
-const authorizePublish = function (client, topic, payload, callback) {
+const authorizePublish = (client, topic, payload, callback) => {
     // Utiliser sql pour vérifier que le client (on récupère le client.user)
     // a le droit de publier dans le topic 'topic'
 
@@ -113,7 +126,7 @@ const authorizePublish = function (client, topic, payload, callback) {
 }
 
 
-var authorizeSubscribe = function (client, topic, callback) {
+var authorizeSubscribe = (client, topic, callback) => {
 
     //
     //    
@@ -127,7 +140,7 @@ var authorizeSubscribe = function (client, topic, callback) {
 
 const server = new mosca.Server(settings)
 
-server.on('clientConnected', function (client) {
+server.on('clientConnected', client => {
 
     var instance = new connectionsModel({
         device_name: client.user.device_name,
@@ -144,14 +157,13 @@ server.on('clientConnected', function (client) {
     // console.log('Client connected', client.user);
 })
 
-server.on('clientDisconnected', function (client) {
+server.on('clientDisconnected', client => {
 
     var instance = new disconnectionsModel({
         device_name: client.user.device_name,
         project_id: client.user.project_id,
         group_name: client.user.group_name
     })
-    console.log(client.user.group_name)
 
     instance.save(err => {
         if (err) {
@@ -159,10 +171,31 @@ server.on('clientDisconnected', function (client) {
         }
     })
 
+    var request = require("request");
+
+    var options = {
+        method: 'PATCH',
+        url: req(reqProtocol, reqPort, reqURL,
+            reqPathDisconnect(client.user.project_id, client.user.group_name,
+                client.user.device_name)),
+        headers:
+        {
+            // we must add token here
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        form: {}
+    };
+
+    request(options, function (error, response, body) {
+        if (error) throw new Error(error);
+
+        console.log(body);
+    });
+
     // console.log('Client disconnected:', client.id);
 })
 
-server.on('published', function (packet, client) {
+server.on('published', (packet, client) => {
     if (!client)
         return;
 
@@ -193,7 +226,7 @@ server.on('published', function (packet, client) {
     // console.log('Published: payload::', packet.topic)
 })
 
-server.on('subscribed', function (topic, client) {
+server.on('subscribed', (topic, client) => {
     var instance = new subscribtionsModel({
         device_name: client.user.device_name,
         group_name: client.user.group_name,
@@ -208,7 +241,7 @@ server.on('subscribed', function (topic, client) {
     })
 })
 
-server.on('unsubscribed', function (topic, client) {
+server.on('unsubscribed', (topic, client) => {
     var instance = new unsubscribtionsModel({
         device_id: client.user.device_name,
         group_name: client.user.group_name,
@@ -230,8 +263,8 @@ server.on('ready', () => {
     console.log('Mosca server is up and running')
 })
 
-server.on('clientConnected', function (client) {
+server.on('clientConnected', client => {
     if (!client)
         return;
     console.log('!::client connected::!');
-});
+})
