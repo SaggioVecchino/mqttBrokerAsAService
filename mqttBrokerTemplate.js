@@ -10,9 +10,9 @@ const reqURL = 'localhost'
 const reqPort = 8000
 const reqPathAuth = '/device/auth'
 
-const reqPathDisconnect = (project_id, group_name, device_name) => {
-    return
-    `/projects/${project_id}/device_groups/${group_name}/devices/${device_name}/disconnect`
+function reqPathDisconnect(project_id, group_name, device_name) {
+    // console.log(`/projects/${project_id}/device_groups/${group_name}/devices/${device_name}/disconnect`)
+    return `/projects/${project_id}/device_groups/${group_name}/devices/${device_name}/disconnect`
 }
 
 const req = (reqProtocol, reqURL, reqPort, reqPath) => {
@@ -78,7 +78,7 @@ const request = require('request');
 // Accepts the connection if the username and password are valid
 
 const authenticate = (client, username, password, callback) => {//##
-    //console.log(`authenticate`)
+    // console.log(`authenticate`)
     var daviceinfos = JSON.parse(username)
     var headers = {
         // we must add token here
@@ -93,26 +93,18 @@ const authenticate = (client, username, password, callback) => {//##
     }
     // Start the request
     request(options, (error, response, body) => {
-        //console.log(`${response.statusMessage}`)
         if (!error && response.statusCode < 400) {
             // Print out the response body
-
             var authorized = JSON.parse(response.body).flag;
             //console.log(JSON.parse(response.body).flag)
             if (authorized) {
                 client.user = JSON.parse(username)
                 //client.user contains all the information we need about the device
-                //console.log(username)
             }
-            //else  console.log(`FALSE: ${username}`)
-            /*var error = new Error('Auth!!!!!!!!!!!!')
-            error.returnCode = 1*/
             callback(null, authorized)
-            //callback(3, authorized);
         }
         else
             callback(null, false);
-        // console.log(`${response.statusCode}`)
     })
 }
 
@@ -142,6 +134,7 @@ const server = new mosca.Server(settings)
 
 server.on('clientConnected', client => {
 
+    // console.log(`Device: ${client.user.device_name} connected`)
     var instance = new connectionsModel({
         device_name: client.user.device_name,
         project_id: client.user.project_id,
@@ -159,6 +152,8 @@ server.on('clientConnected', client => {
 
 server.on('clientDisconnected', client => {
 
+    // console.log(`Device: ${client.user.device_name} disconnected`)
+
     var instance = new disconnectionsModel({
         device_name: client.user.device_name,
         project_id: client.user.project_id,
@@ -173,11 +168,12 @@ server.on('clientDisconnected', client => {
 
     var request = require("request");
 
+    var reqPathDisconnectStr = reqPathDisconnect(client.user.project_id, client.user.group_name,
+        client.user.device_name)
+
     var options = {
         method: 'PATCH',
-        url: req(reqProtocol, reqPort, reqURL,
-            reqPathDisconnect(client.user.project_id, client.user.group_name,
-                client.user.device_name)),
+        url: req(reqProtocol, reqURL, reqPort, reqPathDisconnectStr),
         headers:
         {
             // we must add token here
@@ -187,24 +183,22 @@ server.on('clientDisconnected', client => {
     };
 
     request(options, function (error, response, body) {
+        //console.log(error)
         if (error) throw new Error(error);
-
-        console.log(body);
     });
 
-    // console.log('Client disconnected:', client.id);
 })
 
 server.on('published', (packet, client) => {
     if (!client)
         return;
 
-    console.log(`
+    /*console.log(`
     ---------------------
     ${client.user.device_name}
-    ---------------------`)
+    ---------------------`)*/
 
-    console.log(`${JSON.parse(packet.payload.toString()).data}`)
+    // console.log(`${JSON.parse(packet.payload.toString()).data}`)
 
     var instance = new publishedDataModel({
         device_name: client.user.device_name,
@@ -260,11 +254,5 @@ server.on('ready', () => {
     server.authenticate = authenticate
     //server.authorizePublish = authorizePublish
     // server.authorizeSubscribe = authorizeSubscribe
-    console.log('Mosca server is up and running')
-})
-
-server.on('clientConnected', client => {
-    if (!client)
-        return;
-    console.log('!::client connected::!');
+    // console.log('Mosca server is up and running')
 })
