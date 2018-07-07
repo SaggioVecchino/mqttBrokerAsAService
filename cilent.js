@@ -11,5 +11,6 @@ var client = mqtt.connect('mqtt://localhost:1883',
 
 client.publish('presence',
     JSON.stringify({
-    "data": "84564",
+    'data': '123456',
     }))
+client.subscribe('presence2')

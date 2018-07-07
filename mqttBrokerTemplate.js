@@ -10,11 +10,11 @@ const reqURL = 'localhost'
 const reqPort = 8000
 const reqPathAuth = '/device/auth'
 
-function reqPathAuthorizePub(project_id, group_name,topic){
+function reqPathAuthorizePub(project_id, group_name, topic) {
     return `/projects/${project_id}/device_groups/${group_name}/topics/${topic}/authPublish`
 }
 
-function reqPathAuthorizeSub(project_id, group_name,topic){
+function reqPathAuthorizeSub(project_id, group_name, topic) {
     return `/projects/${project_id}/device_groups/${group_name}/topics/${topic}/authSubscribe`
 }
 
@@ -40,7 +40,7 @@ const publishedDataSchema = new mongoose.Schema({
     project_id: String,
     data: Number, // On peut marquer le type comme dataTypeSchema.. à discuter
     topic: String, // On peut utiliser un tableau.. à discuter
-    date: { type: Date, default: Date.now }
+    date: {type: Date, default: Date.now}
 })
 
 const publishedDataModel = db.model('publishedData', publishedDataSchema)
@@ -50,7 +50,7 @@ const subscribtionsSchema = new mongoose.Schema({
     group_name: String,
     project_id: String,
     topic: String, // On peut utiliser un tableau.. à discuter
-    date: { type: Date, default: Date.now }
+    date: {type: Date, default: Date.now}
 })
 
 const subscribtionsModel = db.model('subscribtion', subscribtionsSchema)
@@ -60,7 +60,7 @@ const unsubscribtionsSchema = new mongoose.Schema({
     group_name: String,
     project_id: String,
     topic: String, // On peut utiliser un tableau.. à discuter
-    date: { type: Date, default: Date.now }
+    date: {type: Date, default: Date.now}
 })
 
 const unsubscribtionsModel = db.model('unsubscribtion', unsubscribtionsSchema)
@@ -69,7 +69,7 @@ const connectionsSchema = new mongoose.Schema({
     device_name: String,
     group_name: String,
     project_id: String,
-    date: { type: Date, default: Date.now }
+    date: {type: Date, default: Date.now}
 })
 
 const connectionsModel = db.model('connection', connectionsSchema)
@@ -78,7 +78,7 @@ const disconnectionsSchema = new mongoose.Schema({
     device_name: String,
     group_name: String,
     project_id: String, // Redondance pour des fins de performances
-    date: { type: Date, default: Date.now }
+    date: {type: Date, default: Date.now}
 })
 
 const disconnectionsModel = db.model('disconnection', disconnectionsSchema)
@@ -102,7 +102,7 @@ const authenticate = (client, username, password, callback) => {
 
     // Start the request
     request(options, (error, response, body) => {
-       // console.log(`authenticate:`,error)
+        // console.log(`authenticate:`,error)
 
         if (!error && response.statusCode < 400) {
             // Print out the response body
@@ -131,9 +131,9 @@ const authorizePublish = (client, topic, payload, callback) => {
     // Configure the request
     var options = {
         url: req(reqProtocol,
-                reqURL,
-                reqPort,
-                reqPathAuthorizePub(client.user.project_id,client.user.group_name,topic)),
+            reqURL,
+            reqPort,
+            reqPathAuthorizePub(client.user.project_id, client.user.group_name, topic)),
         method: 'POST',
         headers: headers,
         form: {} //we must add token here
@@ -145,19 +145,37 @@ const authorizePublish = (client, topic, payload, callback) => {
             //console.log('res.body::',response.body)
             var authorized = JSON.parse(response.body).flag;
             callback(null, authorized)
-    }})
+        }
+    })
 }
 
 
 var authorizeSubscribe = (client, topic, callback) => {
 
-    //
-    //    
-    var authorize = true // ici le traitement 
-    //
-    //
+    var headers = {
+        // we must add token here
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    // Configure the request
+    var options = {
+        url: req(reqProtocol,
+            reqURL,
+            reqPort,
+            reqPathAuthorizeSub(client.user.project_id, client.user.group_name, topic)),
+        method: 'POST',
+        headers: headers,
+        form: {} //we must add token here
+    }
 
-    callback(null, authorize);
+    console.log('subscribing')
+    // Start the request
+    request(options, (error, response, body) => {
+        if (!error && response.statusCode < 400) {
+            //console.log('res.body::',response.body)
+            var authorized = JSON.parse(response.body).flag;
+            callback(null, authorized)
+        }
+    })
 }
 
 
@@ -206,10 +224,10 @@ server.on('clientDisconnected', client => {
         method: 'PATCH',
         url: req(reqProtocol, reqURL, reqPort, reqPathDisconnectStr),
         headers:
-        {
-            // we must add token here
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
+            {
+                // we must add token here
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
         form: {}
     };
 
@@ -285,6 +303,6 @@ server.on('unsubscribed', (topic, client) => {
 server.on('ready', () => {
     server.authenticate = authenticate
     server.authorizePublish = authorizePublish
-    // server.authorizeSubscribe = authorizeSubscribe
-    // console.log('Mosca server is up and running')
+    server.authorizeSubscribe = authorizeSubscribe
+    console.log('Mosca server is up and running')
 })
