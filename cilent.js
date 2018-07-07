@@ -2,11 +2,14 @@ var mqtt = require("mqtt");
 var client = mqtt.connect('mqtt://localhost:1883',
     {
         username: JSON.stringify({
-            "project_id": "2",
-            "password": "passs",
-            "group_name": "groupe10-taki..",
-            "device_name":"CPU1"
+            "project_id": "3",
+            "password": "aaabbb",
+            "group_name": "aaabbb",
+            "device_name":"hhsfdsfdsxkkhh"
         }), password: "shashhsa-52-bits"
     });
 
-client.publish('presence', 'Hello mqtt')
+client.publish('presence',
+    JSON.stringify({
+    "data": "84564",
+    }))

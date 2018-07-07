@@ -10,6 +10,14 @@ const reqURL = 'localhost'
 const reqPort = 8000
 const reqPathAuth = '/device/auth'
 
+function reqPathAuthorizePub(project_id, group_name,topic){
+    return `/projects/${project_id}/device_groups/${group_name}/topics/${topic}/authPublish`
+}
+
+function reqPathAuthorizeSub(project_id, group_name,topic){
+    return `/projects/${project_id}/device_groups/${group_name}/topics/${topic}/authSubscribe`
+}
+
 function reqPathDisconnect(project_id, group_name, device_name) {
     // console.log(`/projects/${project_id}/device_groups/${group_name}/devices/${device_name}/disconnect`)
     return `/projects/${project_id}/device_groups/${group_name}/devices/${device_name}/disconnect`
@@ -77,9 +85,9 @@ const disconnectionsModel = db.model('disconnection', disconnectionsSchema)
 const request = require('request');
 // Accepts the connection if the username and password are valid
 
-const authenticate = (client, username, password, callback) => {//##
-    // console.log(`authenticate`)
-    var daviceinfos = JSON.parse(username)
+const authenticate = (client, username, password, callback) => {
+    //console.log(`authenticate`)
+    var deviceinfos = JSON.parse(username)
     var headers = {
         // we must add token here
         'Content-Type': 'application/x-www-form-urlencoded'
@@ -89,13 +97,16 @@ const authenticate = (client, username, password, callback) => {//##
         url: req(reqProtocol, reqURL, reqPort, reqPathAuth),
         method: 'POST',
         headers: headers,
-        form: daviceinfos //we must add token here
+        form: deviceinfos //we must add token here
     }
+
     // Start the request
     request(options, (error, response, body) => {
+       // console.log(`authenticate:`,error)
+
         if (!error && response.statusCode < 400) {
             // Print out the response body
-            var authorized = JSON.parse(response.body).flag;
+            var authorized = JSON.parse(response.body)['flag'];
             //console.log(JSON.parse(response.body).flag)
             if (authorized) {
                 client.user = JSON.parse(username)
@@ -112,9 +123,29 @@ const authenticate = (client, username, password, callback) => {//##
 const authorizePublish = (client, topic, payload, callback) => {
     // Utiliser sql pour vérifier que le client (on récupère le client.user)
     // a le droit de publier dans le topic 'topic'
+    //we can do some check for the payload
+    var headers = {
+        // we must add token here
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    // Configure the request
+    var options = {
+        url: req(reqProtocol,
+                reqURL,
+                reqPort,
+                reqPathAuthorizePub(client.user.project_id,client.user.group_name,topic)),
+        method: 'POST',
+        headers: headers,
+        form: {} //we must add token here
+    }
 
-    var authorized = (client.user == topic.split('/')[1])
-    callback(null, authorized);
+    // Start the request
+    request(options, (error, response, body) => {
+        if (!error && response.statusCode < 400) {
+            //console.log('res.body::',response.body)
+            var authorized = JSON.parse(response.body).flag;
+            callback(null, authorized)
+    }})
 }
 
 
@@ -134,7 +165,7 @@ const server = new mosca.Server(settings)
 
 server.on('clientConnected', client => {
 
-    // console.log(`Device: ${client.user.device_name} connected`)
+    console.log(`Device: ${client.user.device_name} connected`)
     var instance = new connectionsModel({
         device_name: client.user.device_name,
         project_id: client.user.project_id,
@@ -198,7 +229,8 @@ server.on('published', (packet, client) => {
     ${client.user.device_name}
     ---------------------`)*/
 
-    // console.log(`${JSON.parse(packet.payload.toString()).data}`)
+//  console.log(`data :: ${JSON.parse(packet.payload.toString()).data}`)
+
 
     var instance = new publishedDataModel({
         device_name: client.user.device_name,
@@ -252,7 +284,7 @@ server.on('unsubscribed', (topic, client) => {
 
 server.on('ready', () => {
     server.authenticate = authenticate
-    //server.authorizePublish = authorizePublish
+    server.authorizePublish = authorizePublish
     // server.authorizeSubscribe = authorizeSubscribe
     // console.log('Mosca server is up and running')
 })
