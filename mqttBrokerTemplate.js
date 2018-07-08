@@ -10,8 +10,8 @@ const reqURL = 'localhost'
 const reqPort = 8000
 const reqPathAuth = '/device/auth'
 
-function reqPathAuthorizePub(project_id, group_name, topic) {
-    return `/projects/${project_id}/device_groups/${group_name}/topics/${topic}/authPublish`
+function reqPathAuthorizePub(project_id, group_name) {
+    return `/projects/${project_id}/device_groups/${group_name}/topics/authPublish`
 }
 
 function reqPathAuthorizeSub(project_id, group_name, topic) {
@@ -133,17 +133,18 @@ const authorizePublish = (client, topic, payload, callback) => {
         url: req(reqProtocol,
             reqURL,
             reqPort,
-            reqPathAuthorizePub(client.user.project_id, client.user.group_name, topic)),
+            reqPathAuthorizePub(client.user.project_id, client.user.group_name)),
         method: 'POST',
         headers: headers,
-        form: {} //we must add token here
+        form: {"topic": topic} //we must add token here
     }
-
     // Start the request
     request(options, (error, response, body) => {
+        console.log(response.statusCode)
         if (!error && response.statusCode < 400) {
             //console.log('res.body::',response.body)
             var authorized = JSON.parse(response.body).flag;
+            console.log(JSON.parse(response.body).message)
             callback(null, authorized)
         }
     })
@@ -265,7 +266,7 @@ server.on('published', (packet, client) => {
     })
 
     // Pour vérifier:
-    // console.log('Published: packet::', packet);
+    // console.log('Published: packet::', packet)
     // console.log('Published: payload::', packet.payload.toString())
     // console.log('Published: payload::', packet.topic)
 })
