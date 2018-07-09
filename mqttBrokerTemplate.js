@@ -19,7 +19,6 @@ function reqPathAuthorizeSub(project_id, group_name, topic) {
 }
 
 function reqPathDisconnect(project_id, group_name, device_name) {
-    // console.log(`/projects/${project_id}/device_groups/${group_name}/devices/${device_name}/disconnect`)
     return `/projects/${project_id}/device_groups/${group_name}/devices/${device_name}/disconnect`
 }
 
@@ -86,7 +85,6 @@ const request = require('request');
 // Accepts the connection if the username and password are valid
 
 const authenticate = (client, username, password, callback) => {
-    //console.log(`authenticate`)
     var deviceinfos = JSON.parse(username)
     var headers = {
         // we must add token here
@@ -102,12 +100,8 @@ const authenticate = (client, username, password, callback) => {
 
     // Start the request
     request(options, (error, response, body) => {
-        // console.log(`authenticate:`,error)
-
         if (!error && response.statusCode < 400) {
-            // Print out the response body
             var authorized = JSON.parse(response.body)['flag'];
-            //console.log(JSON.parse(response.body).flag)
             if (authorized) {
                 client.user = JSON.parse(username)
                 //client.user contains all the information we need about the device
@@ -121,8 +115,6 @@ const authenticate = (client, username, password, callback) => {
 
 
 const authorizePublish = (client, topic, payload, callback) => {
-    // Utiliser sql pour vérifier que le client (on récupère le client.user)
-    // a le droit de publier dans le topic 'topic'
     //we can do some check for the payload
     var headers = {
         // we must add token here
@@ -142,9 +134,7 @@ const authorizePublish = (client, topic, payload, callback) => {
     request(options, (error, response, body) => {
         console.log(response.statusCode)
         if (!error && response.statusCode < 400) {
-            //console.log('res.body::',response.body)
             var authorized = JSON.parse(response.body).flag;
-            console.log(JSON.parse(response.body).message)
             callback(null, authorized)
         }
     })
@@ -152,12 +142,10 @@ const authorizePublish = (client, topic, payload, callback) => {
 
 
 var authorizeSubscribe = (client, topic, callback) => {
-
     var headers = {
         // we must add token here
         'Content-Type': 'application/x-www-form-urlencoded'
     }
-    // Configure the request
     var options = {
         url: req(reqProtocol,
             reqURL,
@@ -169,10 +157,8 @@ var authorizeSubscribe = (client, topic, callback) => {
     }
 
     console.log('subscribing')
-    // Start the request
     request(options, (error, response, body) => {
         if (!error && response.statusCode < 400) {
-            //console.log('res.body::',response.body)
             var authorized = JSON.parse(response.body).flag;
             callback(null, authorized)
         }
@@ -196,13 +182,9 @@ server.on('clientConnected', client => {
             throw err
         }
     })
-
-    // console.log('Client connected', client.user);
 })
 
 server.on('clientDisconnected', client => {
-
-    // console.log(`Device: ${client.user.device_name} disconnected`)
 
     var instance = new disconnectionsModel({
         device_name: client.user.device_name,
@@ -233,7 +215,6 @@ server.on('clientDisconnected', client => {
     };
 
     request(options, function (error, response, body) {
-        //console.log(error)
         if (error) throw new Error(error);
     });
 
@@ -242,14 +223,6 @@ server.on('clientDisconnected', client => {
 server.on('published', (packet, client) => {
     if (!client)
         return;
-
-    /*console.log(`
-    ---------------------
-    ${client.user.device_name}
-    ---------------------`)*/
-
-//  console.log(`data :: ${JSON.parse(packet.payload.toString()).data}`)
-
 
     var instance = new publishedDataModel({
         device_name: client.user.device_name,
@@ -264,11 +237,6 @@ server.on('published', (packet, client) => {
             throw err
         }
     })
-
-    // Pour vérifier:
-    // console.log('Published: packet::', packet)
-    // console.log('Published: payload::', packet.payload.toString())
-    // console.log('Published: payload::', packet.topic)
 })
 
 server.on('subscribed', (topic, client) => {
