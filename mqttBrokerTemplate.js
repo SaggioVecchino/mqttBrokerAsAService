@@ -14,8 +14,8 @@ function reqPathAuthorizePub(project_id, group_name) {
     return `/projects/${project_id}/device_groups/${group_name}/topics/authPublish`
 }
 
-function reqPathAuthorizeSub(project_id, group_name, topic) {
-    return `/projects/${project_id}/device_groups/${group_name}/topics/${topic}/authSubscribe`
+function reqPathAuthorizeSub(project_id, group_name) {
+    return `/projects/${project_id}/device_groups/${group_name}/topics/authSubscribe`
 }
 
 function reqPathDisconnect(project_id, group_name, device_name) {
@@ -165,7 +165,7 @@ var authorizeSubscribe = (client, topic, callback) => {
             reqPathAuthorizeSub(client.user.project_id, client.user.group_name, topic)),
         method: 'POST',
         headers: headers,
-        form: {} //we must add token here
+        form: {"topic": topic} //we must add token here
     }
 
     console.log('subscribing')
