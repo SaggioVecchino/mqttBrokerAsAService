@@ -307,3 +307,9 @@ server.on('ready', () => {
     server.authorizeSubscribe = authorizeSubscribe
     console.log('Mosca server is up and running')
 })
+
+/*************************************************************************************/
+const app = require('./nodeApiForLaravelSide');
+const http = require('http');
+const nodeApiPort=1233
+const nodeApiServer = http.createServer(app).listen(nodeApiPort);
