@@ -1,4 +1,5 @@
 const mosca = require('mosca')
+const mongooseModels=require('./mongooseModels')
 
 const settings = {
     port: 1883
@@ -27,61 +28,6 @@ const req = (reqProtocol, reqURL, reqPort, reqPath) => {
     return `${reqProtocol}://${reqURL}:${reqPort}${reqPath}`
 }
 
-const mongoose = require('mongoose')
-const databaseName = 'mqttdb'
-const mongoDB = `mongodb://127.0.0.1:27017/${databaseName}`
-mongoose.connect(mongoDB)
-const db = mongoose.connection
-db.on('error', console.error.bind(console, 'MongoDB connection error:'))
-
-const publishedDataSchema = new mongoose.Schema({
-    device_name: String,
-    group_name: String,
-    project_id: String,
-    data: Number, // On peut marquer le type comme dataTypeSchema.. à discuter
-    topic: String, // On peut utiliser un tableau.. à discuter
-    date: {type: Date, default: Date.now}
-})
-
-const publishedDataModel = db.model('publishedData', publishedDataSchema)
-
-const subscribtionsSchema = new mongoose.Schema({
-    device_name: String,
-    group_name: String,
-    project_id: String,
-    topic: String, // On peut utiliser un tableau.. à discuter
-    date: {type: Date, default: Date.now}
-})
-
-const subscribtionsModel = db.model('subscribtion', subscribtionsSchema)
-
-const unsubscribtionsSchema = new mongoose.Schema({
-    device_name: String,
-    group_name: String,
-    project_id: String,
-    topic: String, // On peut utiliser un tableau.. à discuter
-    date: {type: Date, default: Date.now}
-})
-
-const unsubscribtionsModel = db.model('unsubscribtion', unsubscribtionsSchema)
-
-const connectionsSchema = new mongoose.Schema({
-    device_name: String,
-    group_name: String,
-    project_id: String,
-    date: {type: Date, default: Date.now}
-})
-
-const connectionsModel = db.model('connection', connectionsSchema)
-
-const disconnectionsSchema = new mongoose.Schema({
-    device_name: String,
-    group_name: String,
-    project_id: String, // Redondance pour des fins de performances
-    date: {type: Date, default: Date.now}
-})
-
-const disconnectionsModel = db.model('disconnection', disconnectionsSchema)
 const request = require('request');
 // Accepts the connection if the username and password are valid
 
@@ -185,7 +131,7 @@ const server = new mosca.Server(settings)
 server.on('clientConnected', client => {
 
     console.log(`Device: ${client.user.device_name} connected`)
-    var instance = new connectionsModel({
+    var instance = new mongooseModels["connectionsModel"]({
         device_name: client.user.device_name,
         project_id: client.user.project_id,
         group_name: client.user.group_name
@@ -204,7 +150,7 @@ server.on('clientDisconnected', client => {
 
     // console.log(`Device: ${client.user.device_name} disconnected`)
 
-    var instance = new disconnectionsModel({
+    var instance = new mongooseModels["disconnectionsModel"]({
         device_name: client.user.device_name,
         project_id: client.user.project_id,
         group_name: client.user.group_name
@@ -251,7 +197,7 @@ server.on('published', (packet, client) => {
 //  console.log(`data :: ${JSON.parse(packet.payload.toString()).data}`)
 
 
-    var instance = new publishedDataModel({
+    var instance = new mongooseModels["publishedDataModel"]({
         device_name: client.user.device_name,
         project_id: client.user.project_id,
         group_name: client.user.group_name,
@@ -272,7 +218,7 @@ server.on('published', (packet, client) => {
 })
 
 server.on('subscribed', (topic, client) => {
-    var instance = new subscribtionsModel({
+    var instance = new mongooseModels["subscribtionsModel"]({
         device_name: client.user.device_name,
         group_name: client.user.group_name,
         project_id: client.user.project_id,
@@ -287,7 +233,7 @@ server.on('subscribed', (topic, client) => {
 })
 
 server.on('unsubscribed', (topic, client) => {
-    var instance = new unsubscribtionsModel({
+    var instance = new mongooseModels["unsubscribtionsModel"]({
         device_id: client.user.device_name,
         group_name: client.user.group_name,
         project_id: client.user.project_id,

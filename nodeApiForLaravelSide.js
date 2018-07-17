@@ -1,41 +1,151 @@
 var express = require('express');
 var app = express();
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({extended: false}));
 
-const mongoose = require('mongoose')
-const databaseName = 'mqttdb'
-const mongoDB = `mongodb://127.0.0.1:27017/${databaseName}`
-mongoose.connect(mongoDB)
-const db = mongoose.connection
-const publishedDataSchema = new mongoose.Schema({
-    device_name: String,
-    group_name: String,
-    project_id: String,
-    data: Number, // On peut marquer le type comme dataTypeSchema.. à discuter
-    topic: String, // On peut utiliser un tableau.. à discuter
-    date: {type: Date, default: Date.now}
-})
-var publishedDataModel = db.models['publishedData'] || db.model('publishedData', publishedDataSchema)
+var publishedDataModel = require('./mongooseModels')['publishedDataModel']
 
-find1=function(that,query,callback){
-    return that.find(query, callback);
+function getInterval(interval) {
+    let time = 0
+    let now = new Date()
+    switch (interval) {
+        case "TY":
+            time = new Date(now.getFullYear(), 0, 1).getTime();
+            break;
+        case "TM":
+            time = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+            break;
+        case "TW":
+            var day = now.getDay();
+            time = new Date().setDate(now.getDate() - day);
+            break;
+        case "TD":
+            time = new Date().setDate(now.getDate())
+            break;
+        case "TH":
+            time = new Date(now.getFullYear(),
+                now.getMonth(), now.getDate(),
+                now.getHours()).getTime();
+            break;
+    }
+    return time
 }
-publishedDataModel.findByQuery= function (query, callback) {
-    // we will add the changes here
-   // return this.find(query, callback);
-    return find1(this,query, callback);
+
+function groupBy(interval, freq) {
+    switch (freq) {
+        case 'M':
+            return {month: {$month: "$date"}}
+        case 'W':
+            return {week: {$week: "$date"}}
+        case 'D':
+            return {day: {$dayOfYear: "$date"}}
+        case 'H':
+            return {
+                hour: {
+                    $add: [
+                        {$multiply: [24, {$dayOfYear: "$date"}]},
+                        {$hour: "$date"}
+                    ]
+                }
+            }
+        case 'Mn':
+            return {
+                minute:
+                    {
+                        $add: [
+                            {$multiply: [60, 24, {$dayOfYear: "$date"}]},
+                            {$multiply: [60, {$hour: "$date"}]},
+                            {$minute: "$date"}
+                        ]
+                    }
+
+            }
+    }
+}
+
+function restrict(project_id, topics, interval, groups, devices) {
+
+    var obj = {}
+    obj["$and"] = []
+    obj["$and"].push({project_id: project_id})
+    obj["$and"].push({topic: {$regex: topics.substr(1, topics.length - 2)}})
+    obj["$and"].push({date: {$gt: new Date(interval)}}) //we can omit this to pull all data...
+
+    if (groups) {
+        var or = {}
+        or["$or"] = []
+        or["$or"].push({group_name: {$in: groups}})
+    }
+
+    if (devices) {
+        devices.forEach((e) => {
+            or["$or"].push(
+                {
+                    $and: [
+                        {"device_name": e.device_name},
+                        {"group_name": e.group_name}
+                    ]
+                })
+        })
+        obj["$and"].push(or)
+    }
+    return obj
+}
+
+function groupData(groupBy, aggregate, aggregateColumn, resultColumn) {
+    var obj = {}
+    var agg = {}
+    obj["_id"] = groupBy // _id : { month: { $month: "$date" }, day: { $dayOfMonth: "$date" }, year: { $year: "$date" } },
+    if (aggregate === 'count') {
+        aggregate = 'sum'
+        aggregateColumn = 1
+        aggregate = "$" + aggregate
+        agg[aggregate] = aggregateColumn
+        obj[resultColumn] = agg
+    }
+    else {
+        aggregate = "$" + aggregate
+        agg[aggregate] = "$" + aggregateColumn //we can handle multiple column result
+        obj[resultColumn] = agg
+    }
+    return obj
+}
+
+publishedDataModel.findByQuery = function (query, callback) {
+
+    var match = restrict(query.project_id, query.topics, getInterval(query.interval),
+        typeof query.groups === "undefined" ? null : query.groups,
+        typeof query.devices === "undefined" ? null : query.devices)
+
+    var group = groupData(groupBy(query.interval, query.freq), query.agg, 'data', `${query.agg}`)
+
+    return publishedDataModel.aggregate(
+        [
+            {
+                $match: match
+            },
+            {
+                $group: group
+            }
+        ], callback)
 }
 
 
 app.post('/data/:project_id', (req, res) => {
-    // console.log("req.query", req.query);
-    // console.log("req.body", req.body);
-    // console.log("project_id", req.params.project_id);
-    publishedDataModel.findByQuery(req.body,(err,result)=>{
-        res.json(result);
+
+    publishedDataModel.findByQuery(req.body, function (err, result) {
+        var newRes = result.map((el) => {
+            for (key in el["_id"]) {
+                if (el["_id"].hasOwnProperty(key)) {
+                    return {
+                        x: el["_id"][key],
+                        y: el[req.body.agg]
+                    };
+                }
+            }
+        })
+        res.json(newRes);
     });
 });
-
 
 module.exports = app;
