@@ -31,6 +31,21 @@ function getInterval(interval) {
     return time
 }
 
+function getMonth(monthNum) {
+    months = [
+        "January", "Fabruary", "March",
+        "April", "May", "December", "June",
+        "July", "August", "September",
+        "October", "Novembe", "December"
+    ]
+    return months[monthNum]
+}
+
+function getDay(dayNum) {
+    days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return days[dayNum]
+}
+
 function groupBy(interval, freq) {
     switch (freq) {
         case 'M':
@@ -130,22 +145,54 @@ publishedDataModel.findByQuery = function (query, callback) {
         ], callback)
 }
 
+function findingLoop(req) {
+    var promises = []
+    req.body.requestSets.forEach(function (reqSet) {
+        var oneReq = {
+            project_id: req.body.project_id,
+            topics: reqSet.topic,
+            interval: req.body.interval,
+            groups: typeof reqSet.groups === "undefined" ?
+                null : reqSet.groups,
+            devices: typeof reqSet.devices === "undefined" ?
+                null : reqSet.devices,
+            freq: req.body.freq,
+            agg: req.body.agg
+        }
+        promises.push(
+            new Promise(
+                function (resolve, reject) {
+                    publishedDataModel.findByQuery(oneReq, function (err, result) {
+                        if (!err) {
+                            var newRes = result.map((el) => {
+                                for (key in el["_id"]) {
+                                    if (el["_id"].hasOwnProperty(key)) {
+                                        return {
+                                            x: el["_id"][key],
+                                            y: el[req.body.agg]
+                                        };
+                                    }
+                                }
+                            })
+                            resolve(newRes);
+                        }
+                        else {
+                            reject(err)
+                        }
+                    })
+                }
+            )
+        )
+    })
+    return promises
+}
 
 app.post('/data/:project_id', (req, res) => {
-
-    publishedDataModel.findByQuery(req.body, function (err, result) {
-        var newRes = result.map((el) => {
-            for (key in el["_id"]) {
-                if (el["_id"].hasOwnProperty(key)) {
-                    return {
-                        x: el["_id"][key],
-                        y: el[req.body.agg]
-                    };
-                }
-            }
-        })
-        res.json(newRes);
-    });
+    Promise.all(findingLoop(req)).then(result => {
+        res.json(result)
+    }).catch(error => {
+        res.json(error) //we must discuss
+    })
 });
 
 module.exports = app;
