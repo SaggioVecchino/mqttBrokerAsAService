@@ -31,49 +31,83 @@ function getInterval(interval) {
     return time
 }
 
-function getMonth(monthNum) {
+function getMonthName(monthNum) {
     months = [
         "January", "Fabruary", "March",
-        "April", "May", "December", "June",
+        "April", "May", "June",
         "July", "August", "September",
         "October", "Novembe", "December"
     ]
-    return months[monthNum]
+    return months[monthNum - 1]
 }
 
-function getDay(dayNum) {
+dateToStr
+
+function getDayName(dayNum) {
     days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     return days[dayNum]
 }
 
 function groupBy(interval, freq) {
-    switch (freq) {
-        case 'M':
-            return {month: {$month: "$date"}}
-        case 'W':
-            return {week: {$week: "$date"}}
-        case 'D':
-            return {day: {$dayOfYear: "$date"}}
-        case 'H':
-            return {
-                hour: {
-                    $add: [
-                        {$multiply: [24, {$dayOfYear: "$date"}]},
-                        {$hour: "$date"}
-                    ]
-                }
+    hours = {
+        hour: {
+            $add: [
+                {$multiply: [24, {$dayOfYear: "$date"}]},
+                {$hour: "$date"}
+            ]
+        }
+    }
+    minutes = {
+        minute:
+            {
+                $add: [
+                    {$multiply: [60, 24, {$dayOfYear: "$date"}]},
+                    {$multiply: [60, {$hour: "$date"}]},
+                    {$minute: "$date"}
+                ]
             }
-        case 'Mn':
-            return {
-                minute:
-                    {
-                        $add: [
-                            {$multiply: [60, 24, {$dayOfYear: "$date"}]},
-                            {$multiply: [60, {$hour: "$date"}]},
-                            {$minute: "$date"}
-                        ]
-                    }
 
+    }
+    switch (interval) {
+        case 'TY':
+            switch (freq) {
+                case 'M':
+                    return {month: {$month: "$date"}}
+                case 'W':
+                    return {week: {$week: "$date"}}
+                case 'D':
+                    return {day: {$dayOfYear: "$date"}}
+                case 'H':
+                    return hours
+                case 'Mn':
+                    return minutes
+            }
+        case 'TM':
+            switch (freq) {
+                case 'W':
+                    return {week: {$week: "$date"}}
+                case 'D':
+                    return {day: {$dayOfMonth: "$date"}}
+                case 'H':
+                    return hours
+                case 'Mn':
+                    return minutes
+            }
+        case 'TW':
+            switch (freq) {
+                case 'D':
+                    return {day: {$dayOfWeek: "$date"}}
+                case 'H':
+                    return hours
+                case 'Mn':
+                    return minutes
+            }
+        case 'TD':
+            switch (freq) {
+                case 'H':
+                    return {hour: {$hour: "$date"}}
+                case 'Mn':
+                    return minutes
             }
     }
 }
@@ -85,13 +119,14 @@ function restrict(project_id, topics, interval, groups, devices) {
     obj["$and"].push({project_id: project_id})
     obj["$and"].push({topic: {$regex: topics.substr(1, topics.length - 2)}})
     obj["$and"].push({date: {$gt: new Date(interval)}}) //we can omit this to pull all data...
+    if (!groups && !devices)
+        return obj
 
+    var or = {}
+    or["$or"] = []
     if (groups) {
-        var or = {}
-        or["$or"] = []
         or["$or"].push({group_name: {$in: groups}})
     }
-
     if (devices) {
         devices.forEach((e) => {
             or["$or"].push(
@@ -102,8 +137,8 @@ function restrict(project_id, topics, interval, groups, devices) {
                     ]
                 })
         })
-        obj["$and"].push(or)
     }
+    obj["$and"].push(or)
     return obj
 }
 
@@ -111,6 +146,7 @@ function groupData(groupBy, aggregate, aggregateColumn, resultColumn) {
     var obj = {}
     var agg = {}
     obj["_id"] = groupBy // _id : { month: { $month: "$date" }, day: { $dayOfMonth: "$date" }, year: { $year: "$date" } },
+    obj["time"] = {$first: "$date"}
     if (aggregate === 'count') {
         aggregate = 'sum'
         aggregateColumn = 1
@@ -131,8 +167,8 @@ publishedDataModel.findByQuery = function (query, callback) {
     var match = restrict(query.project_id, query.topics, getInterval(query.interval),
         typeof query.groups === "undefined" ? null : query.groups,
         typeof query.devices === "undefined" ? null : query.devices)
+    var group = groupData(groupBy(query.interval, query.freq), query.agg, 'data', `${query.agg}`);
 
-    var group = groupData(groupBy(query.interval, query.freq), query.agg, 'data', `${query.agg}`)
 
     return publishedDataModel.aggregate(
         [
@@ -145,12 +181,57 @@ publishedDataModel.findByQuery = function (query, callback) {
         ], callback)
 }
 
+function dateToStr(date, interval, freq) {
+    switch (interval) {
+        case 'TY':
+            switch (freq) {
+                case 'M':
+                    return getMonthName(date.getMonth())
+                case 'W':
+                    return "".concat(date.getDate(), " ", getMonthName(date.getMonth()))
+                case 'D':
+                    return "".concat(getDayName(date.getDay()), " ", date.getDate(), " ", getMonthName(date.getMonth()))
+                case 'H':
+                    return "".concat(date.getDate(), "/", date.getMonth(), " ", date.getHours(), "h")
+                case 'Mn':
+                    return "".concat(date.getDate(), "/", date.getMonth(), " ", date.getHours(), ":", date.getMinutes())
+            }
+        case 'TM':
+            switch (freq) {
+                case 'W':
+                    return "".concat(date.getDate(), " ", getMonthName(date.getMonth()))
+                case 'D':
+                    return "".concat(getDayName(date.getDay()), " ", date.getDate())
+                case 'H':
+                    return "".concat(date.getDate(), "/", date.getMonth(), " ", date.getHours(), "h")
+                case 'Mn':
+                    return "".concat(date.getDate(), "/", date.getMonth(), " ", date.getHours(), ":", date.getMinutes())
+            }
+        case 'TW':
+            switch (freq) {
+                case 'D':
+                    return getDayName(date.getDay())
+                case 'H':
+                    return "".concat(getDayName(date.getDay()), " ", date.getHours())
+                case 'Mn':
+                    return "".concat(getDayName(date.getDay()), " ", date.getHours(), ":", date.getMinutes())
+            }
+        case 'TD':
+            switch (freq) {
+                case 'H':
+                    return date.getHours()
+                case 'Mn':
+                    return "".concat(date.getHours(), ":", date.getMinutes())
+            }
+    }
+}
+
 function findingLoop(req) {
     var promises = []
     req.body.requestSets.forEach(function (reqSet) {
         var oneReq = {
             project_id: req.body.project_id,
-            topics: reqSet.topic,
+            topics: reqSet.topics,
             interval: req.body.interval,
             groups: typeof reqSet.groups === "undefined" ?
                 null : reqSet.groups,
@@ -159,6 +240,7 @@ function findingLoop(req) {
             freq: req.body.freq,
             agg: req.body.agg
         }
+
         promises.push(
             new Promise(
                 function (resolve, reject) {
@@ -166,10 +248,16 @@ function findingLoop(req) {
                         if (!err) {
                             var newRes = result.map((el) => {
                                 for (key in el["_id"]) {
+                                    console.log("el date:::", el.time.toString())
                                     if (el["_id"].hasOwnProperty(key)) {
                                         return {
-                                            x: el["_id"][key],
-                                            y: el[req.body.agg]
+                                            x: el.time
+                                            // {
+                                            //         // val:el["_id"][key],
+                                            //         // string:dateToStr(el.time,oneReq.interval,oneReq.freq)
+                                            //     }
+                                            ,
+                                            y: el[oneReq.agg]
                                         };
                                     }
                                 }
@@ -188,6 +276,7 @@ function findingLoop(req) {
 }
 
 app.post('/data/:project_id', (req, res) => {
+    console.log("req.body:::", req.body)
     Promise.all(findingLoop(req)).then(result => {
         res.json(result)
     }).catch(error => {
