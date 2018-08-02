@@ -6,9 +6,10 @@ app.use(express.urlencoded({ extended: false }));
 var publishedDataModel = require("./mongooseModels")["publishedDataModel"];
 
 function getInterval(interval, now) {
+  console.log("11")
   let time = 0;
-  let time_now = new Date(now);
-  switch (interval) {
+  let time_now = new Date();
+    switch (interval) {
     case "TY":
       time = new Date(time_now.getFullYear(), 0, 1).getTime();
       break;
@@ -16,11 +17,12 @@ function getInterval(interval, now) {
       time = new Date(time_now.getFullYear(), time_now.getMonth(), 1).getTime();
       break;
     case "TW":
-      var day = time_now.getDay();
-      time = new Date().setDate(time_now.getDate() - day);
+      let day = time_now.getDay();
+      time =new Date(new Date().setDate(time_now.getDate() - day));
+      time= new Date(time.getFullYear(),time.getMonth(),time.getDate()).getTime();
       break;
     case "TD":
-      time = new Date().setDate(time_now.getDate());
+      time=new Date(time_now.getFullYear(),time_now.getMonth(),time_now.getDate()).getTime();
       break;
     case "TH":
       time = new Date(
@@ -30,7 +32,7 @@ function getInterval(interval, now) {
         time_now.getHours()
       ).getTime();
       break;
-    case "TM":
+    case "TMn":
       time = new Date(
         time_now.getFullYear(),
         time_now.getMonth(),
@@ -40,6 +42,8 @@ function getInterval(interval, now) {
       ).getTime();
       break;
   }
+   // console.log("22")
+   //  console.log('time:::',time)
   return time;
 }
 
@@ -204,13 +208,15 @@ publishedDataModel.findByQuery = function(query, callback) {
     typeof query.groups === "undefined" ? null : query.groups,
     typeof query.devices === "undefined" ? null : query.devices
   );
+  //console.log(getInterval(query.interval, query.time))
   var group = groupData(
     groupBy(query.interval, query.freq),
     query.agg,
     "data",
     `${query.agg}`
   );
-
+    // console.log('match::',match)
+    // console.log('group:::',group)
   return publishedDataModel.aggregate(
     [
       {
@@ -324,7 +330,7 @@ function findingLoop(req) {
       agg: req.body.agg,
       time: req.body.time
     };
-
+    // console.log('onereq:::',oneReq)
     promises.push(
       new Promise(function(resolve, reject) {
         publishedDataModel.findByQuery(oneReq, function(err, result) {
@@ -344,6 +350,8 @@ function findingLoop(req) {
                 }
               }
             });
+            // console.log("resp:::",result)
+            //   console.log("newresp:::",newRes)
             resolve(newRes);
           } else {
             reject(err);
@@ -359,7 +367,8 @@ app.post("/data/:project_id", (req, res) => {
   // console.log("req.body:::", req.body);
   Promise.all(findingLoop(req))
     .then(result => {
-      res.json(result);
+      // console.log("finale result",result)
+        res.json(result);
     })
     .catch(error => {
       // console.log(error);

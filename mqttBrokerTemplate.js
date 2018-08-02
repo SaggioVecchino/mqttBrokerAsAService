@@ -89,7 +89,7 @@ const authorizePublish = (client, topic, payload, callback) => {
     //console.log(response.statusCode);
     if (!error && response.statusCode < 400) {
       var authorized = JSON.parse(response.body).flag;
-      console.log(authorized);
+     // console.log(authorized);
       callback(null, authorized);
     }
   });
@@ -235,7 +235,7 @@ server.on("ready", () => {
   server.authenticate = authenticate;
   server.authorizePublish = authorizePublish;
   server.authorizeSubscribe = authorizeSubscribe;
-  // console.log("Mosca server is up and running");
+  console.log("Mosca server is up and running");
 });
 
 /*************************************************************************************/
