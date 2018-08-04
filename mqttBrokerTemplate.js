@@ -10,7 +10,7 @@ const reqProtocol = "http";
 const reqURL = "127.0.0.1";
 const reqPort = 8000;
 const reqPathAuth = "/device/auth";
-
+const reqPathDisconnectAllDevices="/devices/disconnect";
 function reqPathAuthorizePub(project_id, group_name) {
   return `/projects/${project_id}/device_groups/${group_name}/topics/authPublish`;
 }
@@ -232,10 +232,32 @@ server.on("unsubscribed", (topic, client) => {
 });
 
 server.on("ready", () => {
-  server.authenticate = authenticate;
-  server.authorizePublish = authorizePublish;
-  server.authorizeSubscribe = authorizeSubscribe;
-  console.log("Mosca server is up and running");
+    let headers = {
+        "Content-Type": "application/x-www-form-urlencoded"
+    };
+   let options = {
+        url: req(
+            reqProtocol,
+            reqURL,
+            reqPort,
+            reqPathDisconnectAllDevices
+            ),
+        method: "PATCH",
+        headers: headers,
+    };
+   var i=0;
+    while(true){
+        request(options, (error, response, body) => {
+            if (!error && response.statusCode < 400) {
+                server.authenticate = authenticate;
+                server.authorizePublish = authorizePublish;
+                server.authorizeSubscribe = authorizeSubscribe;
+                console.log("Mosca server is up and running");
+                break;
+            }
+        });
+        console.log("not yet:::",++i);
+    }
 });
 
 /*************************************************************************************/
