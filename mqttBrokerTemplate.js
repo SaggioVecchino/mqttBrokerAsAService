@@ -2,13 +2,13 @@ const mosca = require("mosca");
 const mongooseModels = require("./mongooseModels");
 
 const settings = {
-  port: 1883
+  port: 18831
   // On peut rajouter des param pour la persistance
 };
 
 const reqProtocol = "http";
 const reqURL = "iot2.brainiac.dz";
-const reqPort = 8000;
+const reqPort = 80;
 const reqPathAuth = "/device/auth";
 const reqPathDisconnectAllDevices = "/broker/disconnectalldevices";
 function reqPathAuthorizePub(project_id, group_name) {
