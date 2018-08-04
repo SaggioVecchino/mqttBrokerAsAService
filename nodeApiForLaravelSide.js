@@ -6,10 +6,10 @@ app.use(express.urlencoded({ extended: false }));
 var publishedDataModel = require("./mongooseModels")["publishedDataModel"];
 
 function getInterval(interval, now) {
-  console.log("11")
+  // console.log("11")
   let time = 0;
   let time_now = new Date();
-    switch (interval) {
+  switch (interval) {
     case "TY":
       time = new Date(time_now.getFullYear(), 0, 1).getTime();
       break;
@@ -18,11 +18,19 @@ function getInterval(interval, now) {
       break;
     case "TW":
       let day = time_now.getDay();
-      time =new Date(new Date().setDate(time_now.getDate() - day));
-      time= new Date(time.getFullYear(),time.getMonth(),time.getDate()).getTime();
+      time = new Date(new Date().setDate(time_now.getDate() - day));
+      time = new Date(
+        time.getFullYear(),
+        time.getMonth(),
+        time.getDate()
+      ).getTime();
       break;
     case "TD":
-      time=new Date(time_now.getFullYear(),time_now.getMonth(),time_now.getDate()).getTime();
+      time = new Date(
+        time_now.getFullYear(),
+        time_now.getMonth(),
+        time_now.getDate()
+      ).getTime();
       break;
     case "TH":
       time = new Date(
@@ -42,8 +50,8 @@ function getInterval(interval, now) {
       ).getTime();
       break;
   }
-   // console.log("22")
-   //  console.log('time:::',time)
+  // console.log("22")
+  //  console.log('time:::',time)
   return time;
 }
 
@@ -215,8 +223,8 @@ publishedDataModel.findByQuery = function(query, callback) {
     "data",
     `${query.agg}`
   );
-    // console.log('match::',match)
-    // console.log('group:::',group)
+  // console.log('match::',match)
+  // console.log('group:::',group)
   return publishedDataModel.aggregate(
     [
       {
@@ -368,7 +376,7 @@ app.post("/data/:project_id", (req, res) => {
   Promise.all(findingLoop(req))
     .then(result => {
       // console.log("finale result",result)
-        res.json(result);
+      res.json(result);
     })
     .catch(error => {
       // console.log(error);

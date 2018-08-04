@@ -7,10 +7,10 @@ const settings = {
 };
 
 const reqProtocol = "http";
-const reqURL = "127.0.0.1";
+const reqURL = "iot2.brainiac.dz";
 const reqPort = 8000;
 const reqPathAuth = "/device/auth";
-const reqPathDisconnectAllDevices="/devices/disconnect";
+const reqPathDisconnectAllDevices = "/broker/disconnectalldevices";
 function reqPathAuthorizePub(project_id, group_name) {
   return `/projects/${project_id}/device_groups/${group_name}/topics/authPublish`;
 }
@@ -89,7 +89,7 @@ const authorizePublish = (client, topic, payload, callback) => {
     //console.log(response.statusCode);
     if (!error && response.statusCode < 400) {
       var authorized = JSON.parse(response.body).flag;
-     // console.log(authorized);
+      // console.log(authorized);
       callback(null, authorized);
     }
   });
@@ -232,32 +232,24 @@ server.on("unsubscribed", (topic, client) => {
 });
 
 server.on("ready", () => {
-    let headers = {
-        "Content-Type": "application/x-www-form-urlencoded"
-    };
-   let options = {
-        url: req(
-            reqProtocol,
-            reqURL,
-            reqPort,
-            reqPathDisconnectAllDevices
-            ),
-        method: "PATCH",
-        headers: headers,
-    };
-   var i=0;
-    while(true){
-        request(options, (error, response, body) => {
-            if (!error && response.statusCode < 400) {
-                server.authenticate = authenticate;
-                server.authorizePublish = authorizePublish;
-                server.authorizeSubscribe = authorizeSubscribe;
-                console.log("Mosca server is up and running");
-                break;
-            }
-        });
-        console.log("not yet:::",++i);
+  // console.log("onready");
+  let headers = {
+    "Content-Type": "application/x-www-form-urlencoded"
+  };
+  let options = {
+    url: req(reqProtocol, reqURL, reqPort, reqPathDisconnectAllDevices),
+    method: "PATCH",
+    headers: headers
+  };
+  request(options, function(error, response, body) {
+    if (!error && response.statusCode < 400) {
+      server.authenticate = authenticate;
+      server.authorizePublish = authorizePublish;
+      server.authorizeSubscribe = authorizeSubscribe;
+      console.log("Mosca server is up and running");
     }
+  });
+  //}
 });
 
 /*************************************************************************************/
